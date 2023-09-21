@@ -1,61 +1,91 @@
-// Імпорт функцій fetchBreeds та fetchCatByBreed з модуля './cat-api'
-import { fetchBreeds, fetchCatByBreed } from './cat-api';
-
-// Встановлення печива з атрибутами SameSite та Secure
-document.cookie = 'myCookie=myValue; SameSite=None; Secure';
-
+import '../src/index.css';
+import SlimSelect from 'slim-select';
+import 'slim-select/dist/slimselect.css';
+import { fetchBreeds, fetchCatByBreed } from './cat-api.js';
+import { Loading } from 'notiflix/build/notiflix-loading-aio';
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 // Отримання посилань на HTML-елементи з класами
-const breedSelect = document.querySelector('.breed-select'); // Вибір породи кота
-const loader = document.querySelector('.loader'); // Відображення завантажувача
-const error = document.querySelector('.error'); // Відображення повідомлення про помилку
-const catInfo = document.querySelector('.cat-info'); // Відображення інформації про кота
+const select = document.querySelector('.breed-select'); // Вибір породи кота
+const loading = document.querySelector('.loader'); // Відображення завантажувача
+const error = document.querySelector('.error'); // Відображення помилки
+const catCard = document.querySelector('.cat-info'); // Відображення catInfo
 
-// Обробник події, що відбувається при завантаженні сторінки
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    // Відображення завантажувача під час завантаження списку порід
-    loader.style.display = 'block';
-    // Отримання списку порід з використанням функції fetchBreeds()
-    const breeds = await fetchBreeds();
-    // Приховання завантажувача після завершення завантаження
-    loader.style.display = 'none';
-    // Додавання опцій до вибірника порід
-    breeds.forEach(breed => {
-      const option = document.createElement('option');
-      option.value = breed.id;
-      option.textContent = breed.name;
-      breedSelect.appendChild(option);
+// Приховання елементів при завантаженні сторінки
+loading.classList.replace('loader', 'is-hidden');
+error.classList.add('is-hidden');
+catCard.classList.add('is-hidden');
+
+// Налаштування відображення завантажувача
+Loading.dots({
+  svgColor: '#5897fb',
+  svgSize: '130px',
+  messageFontSize: '35px',
+});
+
+// Отримання та відображення списку порід котів
+fetchBreeds()
+  .then(data => {
+    select.classList.add('breed-select');
+    loading.classList.replace('loader', 'is-hidden');
+    select.insertAdjacentHTML('beforeend', createMarkupOptions(data));
+    new SlimSelect({
+      select: select,
+      settings: {
+        placeholderText: 'Select a cat',
+      },
     });
-  } catch (e) {
-    // Приховання завантажувача та відображення повідомлення про помилку у разі помилки завантаження
-    loader.style.display = 'none';
-    error.style.display = 'block';
-  }
+  })
+  .catch(err => {
+    Notify.failure(error.textContent);
+  })
+  .finally(result => Loading.remove());
+
+// Функція для створення HTML-коду опцій вибірника
+function createMarkupOptions(arr) {
+  return arr
+    .map(({ id, name }) => {
+      return `<option value=${id}>${name}</option>`;
+    })
+    .join('');
+}
+
+// Обробник події при виборі породи кота
+select.addEventListener('change', e => {
+  const id = e.target.value;
+
+  // Налаштування відображення завантажувача
+  Loading.dots({
+    svgColor: '#fafafa',
+    svgSize: '130px',
+    messageFontSize: '30px',
+  });
+
+  // Отримання та відображення інформації про кота
+  fetchCatByBreed(id)
+    .then(catInfo => {
+      catCard.classList.replace(`is-hidden`, 'cat-info');
+      createMarkupCards(catInfo);
+    })
+    .catch(err => {
+      catCard.classList.add(`is-hidden`);
+      Notify.failure(error.textContent);
+    })
+    .finally(result => Loading.remove());
 });
 
-// Обробник події, що відбувається при виборі породи кота з вибірника
-breedSelect.addEventListener('change', async () => {
-  const selectedBreedId = breedSelect.value;
-  try {
-    // Відображення завантажувача під час завантаження інформації про кота
-    loader.style.display = 'block';
-    // Отримання інформації про кота за обраною породою з використанням функції fetchCatByBreed()
-    const [cat] = await fetchCatByBreed(selectedBreedId);
-    // Приховання завантажувача після завершення завантаження
-    loader.style.display = 'none';
-    // Формування HTML-коду для відображення інформації про кота
-    const catInfoHtml = `
-      <h2>Порода: ${cat.breeds[0].name}</h2>
-      <p>Опис породи: ${cat.breeds[0].description}</p>
-      <p>Темперамент: ${cat.breeds[0].temperament}</p>
-      <img src="${cat.url}" alt="Фото котика">
-    `;
-    // Відображення інформації про кота на сторінці
-    catInfo.innerHTML = catInfoHtml;
-  } catch (e) {
-    // Приховання завантажувача, відображення повідомлення про помилку і очищення інформації про кота у разі помилки завантаження
-    loader.style.display = 'none';
-    error.style.display = 'block';
-    catInfo.innerHTML = '';
-  }
-});
+// Функція для створення HTML-коду для інформації про кота
+function createMarkupCards(data) {
+  const {
+    breeds: [{ name, description, temperament }],
+    url,
+  } = data;
+
+  const card = ` 
+        <img class="cat-img" src="${url}" alt="${name}"  >
+         <div class="cat-right">
+        <h1 class="name">${name}</h1>
+        <p class="description">${description}</p>
+        <p class="temperament"><span class="temperament-span">Temperament:</span> ${temperament}</p>    
+        </div>`;
+  catCard.innerHTML = card;
+}

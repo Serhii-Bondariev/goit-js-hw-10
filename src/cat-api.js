@@ -1,29 +1,33 @@
-// cat-api.js
-
 import axios from 'axios';
-
-// Встановлення ключа доступу
-axios.defaults.headers.common['x-api-key'] =
+// URL для звернень до API
+const URL = 'https://api.thecatapi.com/v1/';
+// Ключ доступу до API
+const API_KEY =
   'live_jOiK6MzSYJAkw5eKvKfoj7M38hZlknKIiM4zLPt62UhBJwaibwvvrpsMn32nvbtd';
-
-// Функція для отримання списку порід
-export async function fetchBreeds() {
-  try {
-    const response = await axios.get('https://api.thecatapi.com/v1/breeds');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// Встановлення базового URL для axios
+axios.defaults.baseURL = URL;
+// Встановлення ключа доступу для всіх запитів
+axios.defaults.headers.common['x-api-key'] = API_KEY;
+// Функція для отримання списку порід котів
+export function fetchBreeds() {
+  const BREEDS_URL = 'breeds';
+  return axios.get(BREEDS_URL).then(res => {
+    if (res.status !== 200) {
+      throw new Error(res.status);
+    }
+    return res.data;
+  });
 }
-
 // Функція для отримання інформації про кота за ідентифікатором породи
-export async function fetchCatByBreed(breedId) {
-  try {
-    const response = await axios.get(
-      `https://api.thecatapi.com/v1/images/search?breed_ids=${breedId}`
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+export function fetchCatByBreed(breedId) {
+  const IMAGES_URL = 'images/search';
+  const params = new URLSearchParams({
+    breed_ids: breedId,
+  });
+  return axios.get(`${IMAGES_URL}?${params}`).then(res => {
+    if (res.status !== 200) {
+      throw new Error(res.status);
+    }
+    return res.data[0];
+  });
 }
